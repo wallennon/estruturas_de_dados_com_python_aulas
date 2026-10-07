@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#071525">
+  <title>Estrutura de Dados — Lista Encadeada Simples</title>
+  <style>
+    :root {
+      --bg: #071525;
+      --bg-2: #0b2037;
+      --panel: rgba(10, 30, 51, .82);
+      --panel-strong: rgba(7, 23, 40, .96);
+      --line: rgba(148, 220, 255, .2);
+      --text: #f5fbff;
+      --muted: #b8cada;
+      --cyan: #37d7ff;
+      --cyan-soft: #9bedff;
+      --violet: #9b7bff;
+      --pink: #ff6fbd;
+      --amber: #ffc85a;
+      --green: #51e6a3;
+      --red: #ff7080;
+      --radius: 22px;
+      --shadow: 0 18px 55px rgba(0, 0, 0, .35);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body {
+      overflow: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 20%, rgba(55, 215, 255, .13), transparent 29%),
+        radial-gradient(circle at 83% 72%, rgba(155, 123, 255, .12), transparent 32%),
+        linear-gradient(135deg, var(--bg), #050d18 72%);
+      font-family: "Segoe UI", Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+    a { color: var(--cyan-soft); }
+
+    #bgCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: .55;
+      pointer-events: none;
+    }
+
+    .topbar {
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: 54px;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 22px;
+      background: rgba(4, 14, 25, .78);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      font-size: 14px;
+      font-weight: 750;
+      letter-spacing: .02em;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      border-radius: 10px;
+      color: #04111d;
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      box-shadow: 0 0 24px rgba(55, 215, 255, .28);
+    }
+
+    .brand span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .top-progress {
+      height: 5px;
+      flex: 1;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .09);
+    }
+
+    .top-progress > div {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink));
+      transition: width .35s ease;
+    }
+
+    .slide-count {
+      min-width: 58px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .icon-btn {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--text);
+      background: rgba(255, 255, 255, .055);
+      cursor: pointer;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+
+    .icon-btn:hover, .icon-btn:focus-visible {
+      transform: translateY(-2px);
+      border-color: rgba(55, 215, 255, .58);
+      background: rgba(55, 215, 255, .12);
+      outline: none;
+    }
+
+    #stage {
+      position: fixed;
+      inset: 54px 0 65px;
+      z-index: 5;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      visibility: hidden;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden auto;
+      padding: clamp(26px, 4vw, 68px) clamp(28px, 5.2vw, 90px);
+      opacity: 0;
+      transform: translateX(3%);
+      transition: opacity .38s ease, transform .38s ease, visibility 0s linear .38s;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(55,215,255,.35) transparent;
+    }
+
+    .slide.active {
+      visibility: visible;
+      z-index: 2;
+      opacity: 1;
+      transform: translateX(0);
+      transition-delay: 0s;
+    }
+
+    .slide.leaving-left { transform: translateX(-3%); }
+    .slide > * { position: relative; z-index: 1; }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      width: min(46vw, 620px);
+      aspect-ratio: 1;
+      right: -14%;
+      top: -27%;
+      border: 1px solid rgba(55, 215, 255, .1);
+      border-radius: 50%;
+      box-shadow: 0 0 0 70px rgba(155, 123, 255, .025), 0 0 0 140px rgba(55, 215, 255, .018);
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      color: var(--cyan-soft);
+      font-size: clamp(12px, 1.15vw, 17px);
+      font-weight: 800;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 32px;
+      height: 3px;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 980px;
+      margin-bottom: 18px;
+      font-size: clamp(45px, 6.2vw, 90px);
+      line-height: .98;
+      letter-spacing: -.045em;
+    }
+
+    h2 {
+      max-width: 1180px;
+      margin-bottom: clamp(18px, 2.3vw, 34px);
+      font-size: clamp(34px, 4.1vw, 62px);
+      line-height: 1.04;
+      letter-spacing: -.035em;
+    }
+
+    h3 {
+      margin-bottom: 9px;
+      font-size: clamp(20px, 1.8vw, 29px);
+      line-height: 1.13;
+    }
+
+    p, li {
+      color: var(--muted);
+      font-size: clamp(16px, 1.38vw, 22px);
+      line-height: 1.46;
+    }
+
+    .lead {
+      max-width: 940px;
+      color: #d9eaf5;
+      font-size: clamp(19px, 1.65vw, 27px);
+    }
+
+    .accent { color: var(--cyan); }
+    .violet { color: #beaaff; }
+    .pink { color: #ff9bd1; }
+    .amber { color: var(--amber); }
+    .green { color: var(--green); }
+    .red { color: var(--red); }
+    .muted { color: var(--muted); }
+    .small { font-size: clamp(12px, 1vw, 15px); }
+
+    .hero-grid,
+    .two-col,
+    .media-grid,
+    .scenario-display {
+      display: grid;
+      align-items: center;
+      gap: clamp(24px, 3.5vw, 58px);
+    }
+
+    .hero-grid { grid-template-columns: 1.05fr .95fr; }
+    .two-col { grid-template-columns: 1fr 1fr; }
+    .media-grid { grid-template-columns: .9fr 1.1fr; }
+    .scenario-display { grid-template-columns: 1fr 1fr; }
+
+    .hero-subtitle {
+      max-width: 780px;
+      margin: 0 0 26px;
+      color: #d6e9f5;
+      font-size: clamp(19px, 1.7vw, 27px);
+    }
+
+    .meta-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #d9ebf7;
+      background: rgba(255,255,255,.045);
+      font-size: clamp(12px, 1vw, 15px);
+    }
+
+    .hero-visual {
+      position: relative;
+      min-height: min(58vh, 520px);
+    }
+
+    .phone-stack {
+      position: absolute;
+      inset: 6% 6% 6% 8%;
+      display: grid;
+      place-items: center;
+    }
+
+    .phone {
+      position: absolute;
+      width: min(31vw, 320px);
+      aspect-ratio: .56;
+      padding: 14px;
+      border: 2px solid rgba(163, 231, 255, .34);
+      border-radius: 35px;
+      background: linear-gradient(145deg, rgba(22, 63, 96, .94), rgba(6, 20, 35, .96));
+      box-shadow: var(--shadow), inset 0 0 32px rgba(55, 215, 255, .05);
+      transform: rotate(-7deg);
+    }
+
+    .phone.two {
+      right: 3%;
+      top: 3%;
+      transform: rotate(9deg) scale(.78);
+      opacity: .84;
+    }
+
+    .phone-screen {
+      height: 100%;
+      overflow: hidden;
+      border: 2px solid rgba(55, 215, 255, .28);
+      border-radius: 25px;
+      background:
+        linear-gradient(rgba(55,215,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(55,215,255,.035) 1px, transparent 1px),
+        #07111d;
+      background-size: 22px 22px;
+      padding: 16px;
+    }
+
+    .post {
+      margin-bottom: 13px;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 15px;
+      background: rgba(255,255,255,.055);
+      animation: postPulse 2.6s ease-in-out infinite;
+    }
+    .post:nth-child(2){animation-delay:-.8s}
+    .post:nth-child(3){animation-delay:-1.4s}
+    @keyframes postPulse { 50% { transform: translateY(-4px); border-color: rgba(55,215,255,.35); } }
+
+    .floating-symbol {
+      position: absolute;
+      color: var(--cyan-soft);
+      font-size: clamp(25px, 3vw, 48px);
+      opacity: .75;
+      filter: drop-shadow(0 0 15px rgba(55,215,255,.35));
+      animation: floaty 4.5s ease-in-out infinite;
+    }
+    .symbol-a { right: 4%; top: 4%; }
+    .symbol-b { left: 2%; bottom: 9%; animation-delay: -2.2s; color: #c7b9ff; }
+    .symbol-c { right: 8%; bottom: 4%; animation-delay: -1.1s; color: #ff9bd1; }
+    @keyframes floaty { 50% { transform: translateY(-10px) rotate(5deg); } }
+
+    .card,
+    .glass {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(18, 49, 78, .75), rgba(8, 25, 43, .8));
+      box-shadow: 0 12px 36px rgba(0, 0, 0, .18);
+      backdrop-filter: blur(12px);
+    }
+
+    .card { padding: clamp(18px, 2vw, 30px); }
+    .glass { padding: clamp(16px, 1.7vw, 25px); }
+    .card p:last-child, .glass p:last-child { margin-bottom: 0; }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(13px, 1.7vw, 24px);
+    }
+
+    .card-grid.four { grid-template-columns: repeat(4, 1fr); }
+    .card-grid.two { grid-template-columns: repeat(2, 1fr); }
+    .card-grid.three { grid-template-columns: repeat(3, 1fr); }
+
+    .icon-circle {
+      display: grid;
+      place-items: center;
+      width: clamp(46px, 4.3vw, 66px);
+      aspect-ratio: 1;
+      margin-bottom: 14px;
+      border: 1px solid rgba(55, 215, 255, .28);
+      border-radius: 18px;
+      background: rgba(55, 215, 255, .08);
+      font-size: clamp(25px, 2.3vw, 38px);
+    }
+
+    .prompt {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-top: 22px;
+      padding: 16px 18px;
+      border-left: 4px solid var(--amber);
+      border-radius: 0 16px 16px 0;
+      color: #fff5d9;
+      background: rgba(255, 200, 90, .09);
+      font-size: clamp(16px, 1.2vw, 19px);
+      line-height: 1.4;
+    }
+
+    .prompt strong { color: var(--amber); }
+
+    .concept-tabs, .scenario-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .toggle-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .toggle-card {
+      min-height: 118px;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      text-align: left;
+      background: rgba(255,255,255,.045);
+      cursor: pointer;
+      transition: transform .2s ease, background .2s ease, border-color .2s ease;
+    }
+
+    .toggle-card:hover, .toggle-card:focus-visible {
+      transform: translateY(-3px);
+      border-color: rgba(55,215,255,.5);
+      outline: none;
+    }
+    .toggle-card.found { border-color: rgba(81,230,163,.65); background: rgba(81,230,163,.11); }
+    .toggle-card .check { float: right; opacity: 0; color: var(--green); }
+    .toggle-card.found .check { opacity: 1; }
+    .toggle-card strong { display: block; margin-bottom: 6px; font-size: clamp(17px, 1.3vw, 21px); }
+    .toggle-card span:last-child { color: var(--muted); font-size: clamp(13px, 1vw, 16px); }
+
+    .definition {
+      max-width: 1050px;
+      margin: 0 auto 26px;
+      padding: clamp(24px, 3vw, 42px);
+      border: 1px solid rgba(55,215,255,.28);
+      border-radius: 28px;
+      color: #f4fbff;
+      background: linear-gradient(135deg, rgba(55,215,255,.105), rgba(155,123,255,.08));
+      font-size: clamp(23px, 2.5vw, 38px);
+      font-weight: 650;
+      line-height: 1.3;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .pill-btn {
+      padding: 10px 16px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.05);
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .pill-btn:hover, .pill-btn:focus-visible, .pill-btn.active {
+      border-color: rgba(55,215,255,.62);
+      background: rgba(55,215,255,.13);
+      outline: none;
+    }
+
+    .concept-output {
+      min-height: 96px;
+      max-width: 920px;
+      margin: 18px auto 0;
+      color: #dcedf6;
+      text-align: center;
+      font-size: clamp(17px, 1.35vw, 22px);
+    }
+
+    .media-frame {
+      position: relative;
+      min-height: 330px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(55,215,255,.08), rgba(155,123,255,.08));
+      box-shadow: var(--shadow);
+    }
+
+    .media-frame img {
+      width: 100%;
+      height: 100%;
+      min-height: 330px;
+      display: block;
+      object-fit: cover;
+    }
+
+    .media-frame.failed::after {
+      content: "Imagem indisponível — o conteúdo da aula continua normalmente.";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 30px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .media-caption {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 9px;
+      padding: 7px 10px;
+      border-radius: 10px;
+      color: #e7f4fb;
+      background: rgba(2,11,20,.78);
+      font-size: 11px;
+      line-height: 1.25;
+      backdrop-filter: blur(8px);
+    }
+
+    .stack { display: grid; gap: 13px; }
+    .fact-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.035);
+    }
+    .fact-row b { color: var(--cyan-soft); font-size: clamp(17px,1.35vw,22px); flex: 0 0 auto; }
+    .fact-row span { color: var(--muted); font-size: clamp(14px,1.05vw,17px); }
+
+    .connection-line {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 14px;
+      align-items: center;
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+    .connection-line.four { grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; }
+    .connection-node {
+      min-height: 210px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      text-align: center;
+      background: rgba(255,255,255,.045);
+    }
+    .connection-node .big { display: block; margin-bottom: 12px; font-size: clamp(43px,5vw,72px); }
+    .arrow { color: var(--cyan); font-size: clamp(28px,3.5vw,48px); }
+
+    .flow-card {
+      position: relative;
+      min-height: 230px;
+      padding: 20px 17px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      text-align: center;
+      background: rgba(255,255,255,.042);
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .flow-card:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 3;
+      right: -21px;
+      top: 43%;
+      color: var(--cyan);
+      font-size: 27px;
+    }
+
+    .flow-card:hover, .flow-card:focus-visible, .flow-card.active {
+      transform: translateY(-4px);
+      border-color: rgba(55,215,255,.55);
+      background: rgba(55,215,255,.1);
+      outline: none;
+    }
+
+    .flow-card .flow-icon { display: block; margin: 8px 0 14px; font-size: clamp(38px,4vw,61px); }
+    .flow-card p { font-size: clamp(13px,1vw,16px); }
+    .flow-example {
+      min-height: 58px;
+      margin-top: 16px;
+      color: #eaf8ff;
+      text-align: center;
+      font-size: clamp(17px,1.35vw,21px);
+    }
+
+    .scenario-side {
+      min-height: 230px;
+      padding: 25px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255,255,255,.04);
+    }
+    .scenario-side .big { font-size: 46px; }
+    .scenario-side ul { margin: 12px 0 0; padding-left: 21px; }
+
+    .quick-checks { display: grid; gap: 12px; }
+    .quick-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 15px 17px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(255,255,255,.038);
+    }
+    .quick-row p { margin: 0; color: #deedf6; }
+    .quick-actions { display: flex; gap: 7px; }
+    .quick-actions button {
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: rgba(255,255,255,.05);
+      cursor: pointer;
+    }
+    .quick-actions button:hover, .quick-actions button:focus-visible { border-color: var(--cyan); outline: none; }
+    .quick-result { grid-column: 1 / -1; display: none; color: var(--muted); font-size: 14px; }
+    .quick-row.answered .quick-result { display: block; }
+    .quick-row.correct { border-color: rgba(81,230,163,.5); }
+    .quick-row.wrong { border-color: rgba(255,112,128,.5); }
+
+    .drag-shell { display: grid; grid-template-columns: .78fr 1.22fr; gap: 20px; }
+    .draggables { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; align-content: start; }
+    .drag-item {
+      padding: 12px 10px;
+      border: 1px solid rgba(255,200,90,.28);
+      border-radius: 14px;
+      background: rgba(255,200,90,.07);
+      cursor: grab;
+      text-align: center;
+      user-select: none;
+    }
+    .drag-item.selected { outline: 3px solid var(--amber); outline-offset: 2px; }
+    .drag-item.placed { opacity: .25; pointer-events: none; }
+    .drop-zones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .drop-zone {
+      min-height: 158px;
+      padding: 13px;
+      border: 2px dashed rgba(55,215,255,.25);
+      border-radius: 17px;
+      background: rgba(55,215,255,.035);
+      cursor: pointer;
+      transition: .18s ease;
+    }
+    .drop-zone:hover, .drop-zone:focus-visible, .drop-zone.dragover {
+      border-color: var(--cyan);
+      background: rgba(55,215,255,.09);
+      outline: none;
+    }
+    .drop-zone b { display: block; margin-bottom: 6px; color: var(--cyan-soft); }
+    .drop-zone .placed-labels { color: var(--muted); font-size: 13px; }
+    .game-status { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; color: var(--muted); }
+
+    .timeline-shell {
+      display: grid;
+      grid-template-columns: minmax(235px, .7fr) 1.3fr;
+      gap: clamp(20px, 3vw, 45px);
+      align-items: stretch;
+    }
+
+    .timeline-buttons {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 9px;
+    }
+
+    .time-btn {
+      min-height: 66px;
+      padding: 10px 8px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      color: var(--muted);
+      background: rgba(255,255,255,.04);
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .time-btn strong { display: block; color: var(--text); font-size: 16px; }
+    .time-btn:hover, .time-btn:focus-visible, .time-btn.active {
+      transform: translateY(-2px);
+      border-color: rgba(255,200,90,.55);
+      color: #fff0c5;
+      background: rgba(255,200,90,.1);
+      outline: none;
+    }
+
+    .timeline-detail {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 330px;
+      overflow: hidden;
+      padding: clamp(25px, 3vw, 44px);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: linear-gradient(135deg, rgba(22,64,96,.72), rgba(8,23,40,.9));
+      box-shadow: var(--shadow);
+    }
+
+    .timeline-year {
+      margin-bottom: 9px;
+      color: var(--amber);
+      font-size: clamp(34px, 5vw, 72px);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -.04em;
+    }
+    .timeline-detail h3 { font-size: clamp(24px, 2.4vw, 37px); }
+    .timeline-detail p { max-width: 760px; }
+
+    .quiz-shell {
+      max-width: 1060px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .quiz-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 15px;
+      color: var(--muted);
+    }
+    .quiz-mini-progress { flex: 1; height: 8px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.08); }
+    .quiz-mini-progress div { height: 100%; background: linear-gradient(90deg,var(--cyan),var(--violet)); transition: width .3s; }
+    .quiz-card {
+      min-height: 465px;
+      padding: clamp(24px,3vw,43px);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: linear-gradient(145deg, rgba(18,49,78,.86), rgba(7,22,39,.94));
+      box-shadow: var(--shadow);
+    }
+    .quiz-card h3 { margin-bottom: 24px; font-size: clamp(23px,2.45vw,37px); }
+    .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+    .quiz-option {
+      min-height: 67px;
+      padding: 14px 17px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      text-align: left;
+      background: rgba(255,255,255,.045);
+      cursor: pointer;
+      transition: .18s ease;
+    }
+    .quiz-option:hover, .quiz-option:focus-visible { transform: translateY(-2px); border-color: rgba(55,215,255,.55); outline: none; }
+    .quiz-option.correct { border-color: var(--green); background: rgba(81,230,163,.13); }
+    .quiz-option.wrong { border-color: var(--red); background: rgba(255,112,128,.13); }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-feedback { min-height: 72px; margin-top: 17px; padding: 12px 15px; border-radius: 14px; color: var(--muted); background: rgba(0,0,0,.12); }
+    .quiz-feedback.good { color: #d8ffec; background: rgba(81,230,163,.08); }
+    .quiz-feedback.bad { color: #ffe0e4; background: rgba(255,112,128,.08); }
+    .quiz-actions { display: flex; justify-content: flex-end; margin-top: 13px; }
+    .primary-btn, .secondary-btn {
+      padding: 11px 17px;
+      border-radius: 13px;
+      cursor: pointer;
+    }
+    .primary-btn { border: 0; color: #04111d; background: linear-gradient(135deg,var(--cyan),#83ebff); font-weight: 800; }
+    .secondary-btn { border: 1px solid var(--line); background: rgba(255,255,255,.05); }
+    .primary-btn:disabled { opacity: .35; cursor: default; }
+    .result-panel { display: grid; place-items: center; min-height: 390px; text-align: center; }
+    .result-score { color: var(--cyan); font-size: clamp(62px,9vw,122px); font-weight: 900; line-height: 1; }
+    .result-panel h3 { font-size: clamp(27px,3vw,44px); }
+
+    .code-block {
+      max-width: 100%;
+      overflow-x: auto;
+      padding: clamp(16px, 2vw, 24px);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(3, 12, 22, .78);
+      box-shadow: var(--shadow);
+      font-family: "SF Mono", "Fira Code", Consolas, Menlo, monospace;
+      font-size: clamp(13px, 1.05vw, 16px);
+      line-height: 1.55;
+      color: #d7ecff;
+      white-space: pre;
+    }
+    .code-block .kw { color: #ff9bd1; }
+    .code-block .fn { color: #9bedff; }
+    .code-block .str { color: #ffc85a; }
+    .code-block .cm { color: #7c93a8; font-style: italic; }
+    .code-block .nb { color: #beaaff; }
+
+    .controls {
+      position: fixed;
+      inset: auto 0 0;
+      height: 65px;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      padding: 0 22px;
+      border-top: 1px solid var(--line);
+      background: rgba(4, 14, 25, .82);
+      backdrop-filter: blur(18px);
+    }
+
+    .teacher {
+      min-width: 0;
+      color: var(--muted);
+      font-size: clamp(11px, .92vw, 14px);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .nav-group { display: flex; align-items: center; gap: 9px; }
+    .nav-btn {
+      min-width: 104px;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255,255,255,.055);
+      cursor: pointer;
+      transition: .18s ease;
+    }
+    .nav-btn.next { border: 0; color: #04111d; background: linear-gradient(135deg,var(--cyan),#92edff); font-weight: 850; }
+    .nav-btn:hover:not(:disabled), .nav-btn:focus-visible:not(:disabled) { transform: translateY(-2px); outline: none; }
+    .nav-btn:disabled { opacity: .3; cursor: default; }
+    .key-hint { color: #7892a6; font-size: 12px; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      place-items: center;
+      padding: 25px;
+      background: rgba(1,7,12,.82);
+      backdrop-filter: blur(16px);
+    }
+    .modal.open { display: grid; }
+    .modal-panel {
+      width: min(1100px, 95vw);
+      max-height: 86vh;
+      overflow: auto;
+      padding: clamp(22px,3vw,40px);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: var(--panel-strong);
+      box-shadow: var(--shadow);
+    }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 20px; }
+    .modal-head h2 { margin: 0; font-size: clamp(27px,3vw,43px); }
+    .overview-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 11px; }
+    .overview-item {
+      min-height: 92px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      text-align: left;
+      background: rgba(255,255,255,.04);
+      cursor: pointer;
+    }
+    .overview-item:hover, .overview-item:focus-visible, .overview-item.current { border-color: rgba(55,215,255,.65); background: rgba(55,215,255,.1); outline: none; }
+    .overview-item small { display: block; margin-bottom: 5px; color: var(--cyan-soft); }
+    .overview-item span { color: #dcecf5; font-size: 14px; line-height: 1.2; }
+    .sources-list { display: grid; gap: 13px; }
+    .source-item { padding: 14px 16px; border: 1px solid var(--line); border-radius: 15px; background: rgba(255,255,255,.035); }
+    .source-item b { display: block; margin-bottom: 5px; }
+    .source-item p { margin: 0; font-size: 14px; }
+    .help-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    kbd { display: inline-block; min-width: 32px; padding: 4px 7px; border: 1px solid rgba(255,255,255,.22); border-bottom-width: 3px; border-radius: 8px; color: #fff; background: rgba(255,255,255,.06); text-align: center; }
+
+    .toast {
+      position: fixed;
+      z-index: 120;
+      left: 50%;
+      bottom: 80px;
+      max-width: min(560px, 88vw);
+      padding: 11px 16px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(4,14,25,.94);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translate(-50%, 12px);
+      pointer-events: none;
+      transition: .25s ease;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%,0); }
+
+    @media (max-width: 980px) {
+      .slide { justify-content: flex-start; }
+      .hero-grid, .two-col, .media-grid, .timeline-shell, .drag-shell, .scenario-display { grid-template-columns: 1fr; }
+      .hero-visual { display: none; }
+      .card-grid.four { grid-template-columns: repeat(2,1fr); }
+      .card-grid.three { grid-template-columns: repeat(2,1fr); }
+      .connection-line, .connection-line.four { grid-template-columns: 1fr; }
+      .connection-line .arrow { transform: rotate(90deg); text-align: center; }
+      .overview-grid { grid-template-columns: repeat(3,1fr); }
+      .flow-card:not(:last-child)::after { display:none; }
+    }
+
+    @media (max-width: 680px) {
+      .brand span:last-child, .key-hint, .teacher { display: none; }
+      .topbar, .controls { padding-left: 12px; padding-right: 12px; }
+      .slide { padding: 23px 20px 30px; }
+      .card-grid, .card-grid.two, .card-grid.four, .card-grid.three, .toggle-cards, .quiz-options, .drop-zones, .draggables { grid-template-columns: 1fr; }
+      .timeline-buttons { grid-template-columns: repeat(2,1fr); }
+      .quick-row { grid-template-columns: 1fr; }
+      .overview-grid, .help-grid { grid-template-columns: 1fr 1fr; }
+      .nav-btn { min-width: 48px; }
+      .nav-btn .nav-text { display: none; }
+      .quiz-card { min-height: 520px; }
+    }
+
+    @media (max-height: 820px) and (min-width: 800px) {
+      h2 { margin-bottom: 12px; font-size: clamp(31px, 3.45vw, 48px); }
+      h3 { margin-bottom: 6px; }
+      p, li { line-height: 1.34; }
+      .eyebrow { margin-bottom: 7px; }
+      .slide { justify-content: flex-start; padding-top: 18px; padding-bottom: 18px; }
+      .card, .glass { padding: 14px 17px; }
+      .prompt { margin-top: 13px; padding-top: 11px; padding-bottom: 11px; }
+      .media-frame, .media-frame img { min-height: 225px !important; }
+      .fact-row { padding: 10px 13px; }
+      .timeline-detail { min-height: 265px; }
+      .flow-card { min-height: 180px; }
+      .scenario-side { min-height: 185px; padding: 18px 22px; }
+      .quiz-card { min-height: 385px; padding: 22px 28px; }
+      .quiz-card h3 { margin-bottom: 15px; }
+      .quiz-option { min-height: 56px; padding: 10px 14px; }
+      .quiz-feedback { min-height: 58px; margin-top: 10px; }
+      .code-block { font-size: 12px; padding: 14px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .001ms !important; }
+    }
+
+  </style>
+</head>
+<body>
+  <canvas id="bgCanvas" aria-hidden="true"></canvas>
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">🔗</span><span>ESTRUTURA DE DADOS · LISTA ENCADEADA SIMPLES</span></div>
+    <div class="top-progress" aria-label="Progresso da apresentação"><div id="progressBar"></div></div>
+    <div class="slide-count" id="slideCount" aria-live="polite">1 / 1</div>
+    <a class="icon-btn" href="index.html" style="text-decoration:none" id="homeBtn" aria-label="Voltar para a página inicial" title="Página inicial">🏠</a>
+    <button class="icon-btn" id="overviewBtn" aria-label="Ver todos os slides" title="Visão geral">▦</button>
+    <button class="icon-btn" id="sourcesBtn" aria-label="Abrir fontes" title="Fontes e créditos">☷</button>
+    <button class="icon-btn" id="helpBtn" aria-label="Abrir ajuda" title="Ajuda">?</button>
+    <button class="icon-btn" id="fullscreenBtn" aria-label="Alternar tela cheia" title="Tela cheia">⛶</button>
+  </header>
+
+  <main id="stage">
+    <section class="slide active" data-title="Abertura">
+
+      <style>
+        .node-chain { display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin:26px 0 6px; }
+        .node-box { display:grid; grid-template-rows:auto auto; border:1px solid var(--line); border-radius:14px; overflow:hidden; min-width:140px; background:rgba(255,255,255,.045); }
+        .node-box .n-carga { padding:14px 16px; text-align:center; font-weight:700; color:var(--cyan-soft); border-bottom:1px solid var(--line); font-size:16px; }
+        .node-box .n-prox { padding:8px 12px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.04em; }
+        .node-box.null .n-carga { color:var(--muted); font-style:italic; }
+        .node-arrow { color:var(--cyan); font-size:26px; }
+      </style>
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Estrutura de Dados I · Listas Lineares</div>
+          <h1>Lista Encadeada <span class="accent">Simples</span></h1>
+          <p class="hero-subtitle">Uma estrutura <strong>linear e dinâmica</strong>: um conjunto de nós, cada um guardando uma informação (<code>carga</code>) e um ponteiro (<code>prox</code>) para o próximo nó — sem precisar de posições contíguas de memória.</p>
+          <div class="meta-row">
+            <span class="meta-chip">🔗 Nó</span>
+            <span class="meta-chip">➡️ prox</span>
+            <span class="meta-chip">🧠 Alocação dinâmica</span>
+            <span class="meta-chip">🐍 Python / POO</span>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <span class="floating-symbol symbol-a">🔗</span>
+          <span class="floating-symbol symbol-b">nó → nó</span>
+          <span class="floating-symbol symbol-c">None</span>
+          <div class="phone-stack">
+            <div class="phone">
+              <div class="phone-screen">
+                <div class="post"><strong>cabeça</strong><br><span class="muted">primeiro nó da lista</span></div>
+                <div class="post"><strong>prox</strong><br><span class="muted">aponta para o próximo nó</span></div>
+                <div class="post"><strong>cauda</strong><br><span class="muted">último nó · prox = None</span></div>
+              </div>
+            </div>
+            <div class="phone two">
+              <div class="phone-screen">
+                <div class="post">🔗 sem posições contíguas</div>
+                <div class="post">➕ insere sem deslocar</div>
+                <div class="post">🔍 acessar o n-ésimo custa O(n)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <section class="slide" data-title="Aquecimento">
+
+      <div class="eyebrow">Aquecimento</div>
+      <h2>Vetor estático ou lista encadeada?</h2>
+      <p class="lead">Antes de programar, vamos comparar a ideia de um vetor (posições fixas e numeradas) com a ideia de uma lista encadeada (nós ligados por ponteiros). Clique nos cartões.</p>
+      <div class="toggle-cards" id="warmupCards">
+        <button class="toggle-card"><span class="check">✓</span><strong>🚆 Vagões encadeados</strong><span>cada vagão (nó) só conhece o vagão seguinte</span></button>
+        <button class="toggle-card"><span class="check">✓</span><strong>🏢 Prédio numerado</strong><span>um vetor tem posições fixas e contíguas — isso não é lista encadeada</span></button>
+        <button class="toggle-card"><span class="check">✓</span><strong>➕ Inserir sem deslocar</strong><span>na lista encadeada, inserir um nó não move os outros</span></button>
+        <button class="toggle-card"><span class="check">✓</span><strong>🔒 Tamanho fixo</strong><span>isso é característica de vetor, não de lista encadeada</span></button>
+        <button class="toggle-card"><span class="check">✓</span><strong>🧭 Só anda para a frente</strong><span>a lista simples só conhece o próximo, nunca o anterior</span></button>
+        <button class="toggle-card"><span class="check">✓</span><strong>🔍 Acessar a posição n</strong><span>é preciso percorrer os n-1 nós anteriores — custo O(n)</span></button>
+      </div>
+
+    </section>
+
+    <section class="slide" data-title="O que é uma lista encadeada?">
+
+      <div class="eyebrow">Conceito-chave</div>
+      <h2>Nós ligados por ponteiros</h2>
+      <div class="definition">Cada nó guarda dois elementos: a <strong class="cyan">carga</strong> (a informação em si) e o <strong class="cyan">prox</strong>, uma referência ao endereço do próximo nó. O último nó aponta para <code>None</code>.</div>
+      <div class="node-chain">
+        <div class="node-box"><div class="n-carga">"aa"</div><div class="n-prox">prox ➡</div></div>
+        <span class="node-arrow">→</span>
+        <div class="node-box"><div class="n-carga">"bb"</div><div class="n-prox">prox ➡</div></div>
+        <span class="node-arrow">→</span>
+        <div class="node-box"><div class="n-carga">"cc"</div><div class="n-prox">prox ➡</div></div>
+        <span class="node-arrow">→</span>
+        <div class="node-box null"><div class="n-carga">None</div><div class="n-prox">fim da lista</div></div>
+      </div>
+      <p class="lead" style="text-align:center;margin-top:18px">A <strong>cabeça</strong> guarda o primeiro nó ("aa") e a <strong>cauda</strong> guarda o último ("cc") — são as duas únicas referências que a lista precisa conhecer diretamente.</p>
+
+    </section>
+
+    <section class="slide" data-title="Vantagens e desvantagens">
+
+      <div class="eyebrow">Comparando com listas estáticas</div>
+      <h2>Vantagens e desvantagens</h2>
+      <div class="card-grid two">
+        <div class="card"><div class="icon-circle">➕</div><h3 class="green">Vantagens</h3><ul>
+          <li>Inserir ou remover um elemento não exige deslocar os outros;</li>
+          <li>Não é preciso definir um número máximo de elementos — a memória é alocada dinamicamente, só para os nós necessários.</li>
+        </ul></div>
+        <div class="card"><div class="icon-circle">⚠️</div><h3 class="red">Desvantagens</h3><ul>
+          <li>Mais "perigosa": se o encadeamento entre nós for mal feito, toda a lista pode se perder;</li>
+          <li>Para acessar o elemento na posição <code>n</code>, é preciso percorrer os <code>n-1</code> nós anteriores.</li>
+        </ul></div>
+      </div>
+      <div class="prompt"><strong>Limite prático:</strong> a alocação dinâmica é limitada pela memória física disponível (e pelo espaço de memória virtual do sistema).</div>
+
+    </section>
+
+    <section class="slide" data-title="Implementação: classe Nó">
+
+      <div class="eyebrow">Laboratório · Orientação a Objetos</div>
+      <h2>A classe <code>No</code></h2>
+      <p class="lead">A classe <code>No</code> é a base da alocação dinâmica: cada nó guarda a <code>carga</code> e uma referência <code>prox</code> ao próximo nó (por padrão, <code>None</code>).</p>
+      <div class="code-block"><span class="kw">class</span> <span class="fn">No</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, carga, prox: <span class="str">'No'</span> = <span class="kw">None</span>):
+        self.carga = carga
+        self.prox = prox
+
+    <span class="kw">def</span> <span class="fn">__str__</span>(self):
+        <span class="kw">return</span> <span class="fn">str</span>(self.carga)</div>
+      <div class="prompt"><strong>Repare:</strong> <code>prox</code> não guarda outro nó "dentro de si" — guarda apenas uma <em>referência</em> (o endereço) para outro objeto <code>No</code> já existente.</div>
+
+    </section>
+
+    <section class="slide" data-title="Criação e ligação entre nós">
+
+      <div class="eyebrow">Laboratório</div>
+      <h2>Criando e ligando nós manualmente</h2>
+      <div class="code-block">n1: <span class="str">'No'</span> = No()
+n1.carga = <span class="str">"aa"</span>
+
+n2: <span class="str">'No'</span> = No()
+n2.carga = <span class="str">"bb"</span>
+
+n1.prox = n2   <span class="cm"># o prox de n1 agora aponta para n2</span></div>
+      <div class="node-chain">
+        <div class="node-box"><div class="n-carga">n1: "aa"</div><div class="n-prox">prox ➡ n2</div></div>
+        <span class="node-arrow">→</span>
+        <div class="node-box null"><div class="n-carga">n2: "bb"</div><div class="n-prox">prox ➡ None</div></div>
+      </div>
+      <div class="prompt"><strong>Atenção:</strong> <code>n1.prox = n2</code> atribui o <em>endereço</em> de <code>n2</code> ao atributo <code>prox</code> de <code>n1</code>. Nenhum dado é copiado.</div>
+
+    </section>
+
+    <section class="slide" data-title="Declaração da lista">
+
+      <div class="eyebrow">Laboratório</div>
+      <h2>A classe <code>ListaEncadeada</code></h2>
+      <p class="lead">A lista é "composta" por apenas dois atributos: <strong>cabeça</strong> (início) e <strong>cauda</strong> (fim). A partir da cabeça, cada nó conhece seu sucessor — então toda a lista pode ser percorrida sem guardar mais nada.</p>
+      <div class="code-block"><span class="kw">class</span> <span class="fn">ListaEncadeada</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self):
+        self.cabeca = <span class="kw">None</span>
+        self.cauda = <span class="kw">None</span></div>
+      <div class="prompt"><strong>Lista vazia:</strong> quando <code>cabeca</code> e <code>cauda</code> são <code>None</code>, a lista não tem nenhum nó.</div>
+
+    </section>
+
+    <section class="slide" data-title="Inserir no início">
+
+      <div class="eyebrow">Operações · Inserção</div>
+      <h2>Inserir no início</h2>
+      <p class="lead">A cabeça passa a apontar para o novo nó, e o novo nó aponta para quem era a cabeça anteriormente.</p>
+      <div class="code-block">    <span class="kw">def</span> <span class="fn">inserir_valor_no_inicio</span>(self, valor):
+        novo = No(valor)
+        <span class="kw">if</span> self.cabeca <span class="kw">is</span> <span class="kw">None</span>:
+            self.cabeca = self.cauda = novo
+        <span class="kw">else</span>:
+            novo.prox = self.cabeca
+            self.cabeca = novo</div>
+      <div class="prompt"><strong>Caso especial:</strong> se a lista estiver vazia, o novo nó se torna <em>ao mesmo tempo</em> cabeça e cauda (linha 4).</div>
+
+    </section>
+
+    <section class="slide" data-title="Inserir no final">
+
+      <div class="eyebrow">Operações · Inserção</div>
+      <h2>Inserir no final</h2>
+      <p class="lead">Acessamos a cauda atual, apontamos seu <code>prox</code> para o novo nó, e atualizamos a cauda da lista.</p>
+      <div class="code-block">    <span class="kw">def</span> <span class="fn">inserir_valor_no_final</span>(self, valor):
+        novo = No(valor)
+        <span class="kw">if</span> self.cabeca <span class="kw">is</span> <span class="kw">None</span>:
+            self.cabeca = self.cauda = novo
+        <span class="kw">else</span>:
+            self.cauda.prox = novo
+            self.cauda = novo</div>
+      <div class="quick-checks" id="quickChecks">
+        <div class="quick-row" data-answer="final">
+          <p>Para inserir no <strong>final</strong> de uma lista encadeada simples (sem ponteiro de cauda), é preciso percorrer a lista inteira?</p>
+          <div class="quick-actions"><button data-choice="final">Sim, sem cauda sim</button><button data-choice="inicio">Não, nunca precisa</button></div>
+          <div class="quick-result">Sem guardar a cauda, seria preciso percorrer todos os nós até o último para inserir no final. Guardando a cauda, essa operação fica O(1).</div>
+        </div>
+      </div>
+
+    </section>
+
+    <section class="slide" data-title="Percorrer e imprimir">
+
+      <div class="eyebrow">Operações · Percurso</div>
+      <h2>Percorrer e imprimir os elementos</h2>
+      <p class="lead">Usamos uma variável auxiliar (<code>atual</code>) que recebe cada nó, avançando pelo atributo <code>prox</code> até encontrar <code>None</code>.</p>
+      <div class="code-block">    <span class="kw">def</span> <span class="fn">imprime_lista</span>(self):
+        <span class="kw">if</span> self.cabeca <span class="kw">is</span> <span class="kw">None</span>:
+            <span class="fn">print</span>(<span class="str">"Lista Vazia"</span>)
+            <span class="kw">return</span>
+
+        atual: <span class="str">'No'</span> = self.cabeca
+        <span class="kw">while</span> atual <span class="kw">is</span> <span class="kw">not</span> <span class="kw">None</span>:
+            <span class="fn">print</span>(<span class="fn">str</span>(atual.carga) + <span class="str">" "</span>)
+            atual = atual.prox</div>
+      <div class="prompt"><strong>Padrão fundamental:</strong> esse mesmo "percorrer com <code>atual</code>" é a base de quase toda operação em listas encadeadas — guarde bem essa lógica.</div>
+
+    </section>
+
+    <section class="slide" data-title="Remover do início">
+
+      <div class="eyebrow">Operações · Remoção</div>
+      <h2>Remover do início</h2>
+      <p class="lead">Basta apontar a cabeça para o segundo nó. Se houver só um nó (cabeça == cauda), a lista fica vazia.</p>
+      <div class="code-block">    <span class="kw">def</span> <span class="fn">remove_do_inicio</span>(self):
+        <span class="kw">if</span> self.cabeca <span class="kw">is</span> <span class="kw">None</span>:
+            <span class="fn">print</span>(<span class="str">"Lista vazia"</span>)
+            <span class="kw">return</span>
+
+        <span class="kw">if</span> self.cabeca == self.cauda:
+            self.cabeca = self.cauda = <span class="kw">None</span>
+        <span class="kw">else</span>:
+            self.cabeca = self.cabeca.prox</div>
+      <div class="prompt"><strong>Custo:</strong> remover do início é <strong class="green">O(1)</strong> — não é preciso percorrer nada.</div>
+
+    </section>
+
+    <section class="slide" data-title="Remover do final">
+
+      <div class="eyebrow">Operações · Remoção</div>
+      <h2>Remover do final</h2>
+      <p class="lead">Sem um ponteiro para "o nó anterior", é preciso percorrer a lista até achar o penúltimo nó, que se torna a nova cauda.</p>
+      <div class="code-block">    <span class="kw">def</span> <span class="fn">remove_do_final</span>(self):
+        <span class="kw">if</span> self.cabeca <span class="kw">is</span> <span class="kw">None</span>:
+            <span class="fn">print</span>(<span class="str">"Lista vazia"</span>)
+            <span class="kw">return</span>
+
+        <span class="kw">if</span> self.cabeca == self.cauda:
+            self.cabeca = self.cauda = <span class="kw">None</span>
+        <span class="kw">else</span>:
+            atual: <span class="str">'No'</span> = self.cabeca
+            <span class="kw">while</span> atual.prox <span class="kw">is</span> <span class="kw">not</span> self.cauda:
+                atual = atual.prox
+
+            self.cauda = atual
+            atual.prox = <span class="kw">None</span></div>
+      <div class="prompt"><strong>Custo:</strong> remover do final é <strong class="amber">O(n)</strong> — bem mais caro que remover do início. (Veremos na próxima aula como a lista duplamente encadeada resolve isso.)</div>
+
+    </section>
+
+    <section class="slide" data-title="Exercício em aula">
+
+      <div class="eyebrow">Mão na massa · implemente agora</div>
+      <h2>Exercícios práticos</h2>
+      <p class="lead">Partindo da classe <code>ListaEncadeada</code> desta aula, implemente os métodos abaixo. Teste cada um com uma lista pequena antes de passar para o próximo.</p>
+      <div class="card-grid three">
+        <div class="card"><div class="icon-circle">📏</div><h3>tamanho()</h3><p>Percorra a lista contando os nós e devolva o total de elementos.</p></div>
+        <div class="card"><div class="icon-circle">🔍</div><h3>buscar(valor)</h3><p>Devolva <code>True</code> se algum nó tiver aquela <code>carga</code>, ou <code>False</code> se não encontrar.</p></div>
+        <div class="card"><div class="icon-circle">📌</div><h3>inserir_na_posicao(i, valor)</h3><p>Insira um novo nó exatamente na posição <code>i</code>, deslocando a ligação (não os dados!).</p></div>
+      </div>
+      <div class="prompt"><strong>Desafio extra:</strong> implemente <code>inverter()</code>, que inverte a ordem dos nós da lista trocando apenas os ponteiros <code>prox</code> — sem criar uma lista nova.</div>
+
+    </section>
+
+    <section class="slide" data-title="Síntese">
+
+      <div class="eyebrow">Síntese</div>
+      <h2>Custo das operações (notação informal)</h2>
+      <div class="stack">
+        <div class="fact-row"><b>Inserir no início</b><span>O(1) — só muda a cabeça</span></div>
+        <div class="fact-row"><b>Inserir no final</b><span>O(1) — com ponteiro de cauda guardado</span></div>
+        <div class="fact-row"><b>Remover do início</b><span>O(1) — só muda a cabeça</span></div>
+        <div class="fact-row"><b>Remover do final</b><span>O(n) — precisa achar o penúltimo nó</span></div>
+        <div class="fact-row"><b>Acessar a posição n</b><span>O(n) — não existe acesso direto por índice</span></div>
+      </div>
+      <div class="prompt"><strong>Pergunta para a próxima aula:</strong> existe uma forma de remover do final sem percorrer tudo? Veremos que sim — com a lista <strong>duplamente</strong> encadeada.</div>
+
+    </section>
+
+    <section class="slide" data-title="Quiz">
+
+      <div class="eyebrow">Quiz gamificado</div>
+      <h2>Quiz final — 12 perguntas</h2>
+      <div class="quiz-shell">
+        <div class="quiz-head">
+          <span id="quizCounter">Pergunta 1 de 12</span>
+          <div class="quiz-mini-progress"><div id="quizProgress"></div></div>
+          <span id="quizScore">0 pts</span>
+        </div>
+        <div class="quiz-card" id="quizCard">
+          <h3 id="quizQuestion"></h3>
+          <div class="quiz-options" id="quizOptions"></div>
+          <div class="quiz-feedback" id="quizFeedback">Escolha uma alternativa para começar.</div>
+          <div class="quiz-actions">
+            <button class="primary-btn" id="nextQuizBtn" disabled>Próxima</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <section class="slide" data-title="Encerramento">
+
+      <div class="eyebrow">Fechamento</div>
+      <h2>Lista encadeada simples, em uma frase</h2>
+      <div class="definition">Uma lista encadeada é um conjunto de nós ligados por ponteiros — cada nó só conhece o próximo — permitindo inserir e remover sem deslocar elementos, ao custo de não ter acesso direto por índice.</div>
+      <div class="prompt"><strong>Para lembrar:</strong> 🧩 nó = carga + prox · 🧭 cabeça = início · 🏁 cauda = fim · ➡️ a lista só anda para a frente.</div>
+
+    </section>
+
+  </main>
+
+  <footer class="controls">
+    <div class="teacher">Professor Wallennon Germano · Slide HTML interativo · Lista Encadeada Simples</div>
+    <div class="nav-group">
+      <button class="nav-btn" id="prevBtn">← <span class="nav-text">Anterior</span></button>
+      <button class="nav-btn next" id="nextBtn"><span class="nav-text">Próximo</span> →</button>
+    </div>
+    <div class="key-hint">Atalhos: ← → · espaço · F · O</div>
+  </footer>
+
+  <div class="modal" id="overviewModal" role="dialog" aria-modal="true" aria-labelledby="overviewTitle">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2 id="overviewTitle">Visão geral dos slides</h2>
+        <button class="icon-btn close-modal" aria-label="Fechar">×</button>
+      </div>
+      <div class="overview-grid" id="overviewGrid"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="sourcesModal" role="dialog" aria-modal="true" aria-labelledby="sourcesTitle">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2 id="sourcesTitle">Fontes e créditos</h2>
+        <button class="icon-btn close-modal" aria-label="Fechar">×</button>
+      </div>
+      <div class="sources-list">
+
+        <div class="source-item"><b>Material de referência</b><p>GitBook de Estrutura de Dados I, IFPB — seção "Listas Lineares · Lista Encadeada Simples".</p></div>
+        <div class="source-item"><b>Adaptação</b><p>Conteúdo reorganizado em slide HTML interativo, com diagramas de nós, exemplos em Python, exercícios práticos de aula e quiz.</p></div>
+        <div class="source-item"><b>Sequência da disciplina</b><p>Esta aula abre o tópico de Listas Lineares e antecede a Lista Duplamente Encadeada.</p></div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2 id="helpTitle">Ajuda e atalhos</h2>
+        <button class="icon-btn close-modal" aria-label="Fechar">×</button>
+      </div>
+      <div class="help-grid">
+        <div class="card"><h3>Navegação</h3><p><kbd>→</kbd> próximo · <kbd>←</kbd> anterior · <kbd>Espaço</kbd> avançar</p></div>
+        <div class="card"><h3>Apresentação</h3><p><kbd>F</kbd> tela cheia · <kbd>O</kbd> visão geral · <kbd>?</kbd> ajuda</p></div>
+        <div class="card"><h3>Interações</h3><p>Clique em cartões, botões e alternativas do quiz para ativar respostas.</p></div>
+        <div class="card"><h3>Dica de aula</h3><p>Use as atividades como pausas para prática rápida, em duplas ou individualmente.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+
+    const gameItems = [];
+
+    const quizData = [
+  {q:'O que cada nó de uma lista encadeada simples armazena?', o:['Apenas a informação (carga)', 'Duas referências, uma para cada vizinho', 'A carga e uma referência para o próximo nó', 'Um índice numérico fixo'], a:2, exp:'Cada nó guarda a carga (a informação) e o prox (referência ao próximo nó).'},
+  {q:'Em "n1.prox = n2", o que exatamente é atribuído a n1.prox?', o:['O endereço (referência) de n2', 'Uma cópia dos dados de n2', 'O valor da carga de n1', 'Nada — essa linha não é válida em Python'], a:0, exp:'A atribuição guarda o endereço de n2 em n1.prox; nenhum dado é copiado.'},
+  {q:'O que acontece se, ao inserir no início, a lista já estiver vazia?', o:['Ocorre um erro de execução', 'A inserção é ignorada silenciosamente', 'É necessário primeiro criar uma cauda manualmente', 'O novo nó se torna cabeça e cauda ao mesmo tempo'], a:3, exp:'Lista vazia: cabeça e cauda passam a apontar para o mesmo novo nó.'},
+  {q:'Qual é o custo (tempo) de remover um elemento do início da lista?', o:['O(n), pois é preciso percorrer tudo', 'O(1), basta atualizar a cabeça', 'O(n²), por causa dos dois ponteiros', 'Depende do tamanho da carga armazenada'], a:1, exp:'Remover do início só exige mudar a referência da cabeça — tempo constante.'},
+  {q:'Por que remover do final é mais custoso do que remover do início, na lista simples?', o:['Porque a cauda nunca pode ser alterada', 'Porque toda a lista precisa ser copiada antes', 'Porque é preciso percorrer a lista até achar o penúltimo nó', 'Na verdade os dois custam exatamente o mesmo'], a:2, exp:'Sem um ponteiro para "o anterior", é preciso percorrer tudo até o penúltimo nó.'},
+  {q:'Para acessar o elemento que está na posição 7 de uma lista encadeada, o que é necessário fazer?', o:['Percorrer os 6 nós anteriores a partir da cabeça', 'Nada, o acesso é direto, como em um vetor', 'Acessar diretamente pela cauda', 'Isso não é possível em listas encadeadas'], a:0, exp:'Não há acesso direto por índice: é preciso percorrer nó a nó a partir da cabeça.'},
+  {q:'O que representa a variável "cauda" em uma lista encadeada simples?', o:['O nó do meio da lista', 'O último nó da lista', 'O primeiro nó da lista', 'Uma cópia de todos os nós'], a:1, exp:'A cauda referencia o último nó da lista, cujo prox é None.'},
+  {q:'Qual das vantagens abaixo é real da lista encadeada frente ao vetor estático?', o:['Acesso direto a qualquer posição em tempo constante', 'Ocupa sempre menos memória que um vetor de mesmo tamanho', 'Permite busca binária em tempo logarítmico', 'Inserir ou remover um elemento não exige deslocar os demais'], a:3, exp:'A principal vantagem é não precisar deslocar elementos ao inserir ou remover.'},
+  {q:'Depois de "atual = atual.prox" repetidas vezes dentro de um laço de impressão, quando o laço deve parar?', o:['Quando atual se tornar None', 'Quando atual.carga for igual a zero', 'Depois de exatamente 10 repetições', 'O laço de impressão nunca para'], a:0, exp:'O percurso termina quando "atual" chega a None, ou seja, passou do último nó.'},
+  {q:'O que caracteriza a principal desvantagem de uma lista encadeada em relação à sua manipulação?', o:['Ela não permite armazenar números', 'Ela ocupa sempre mais memória do que qualquer vetor', 'Um encadeamento malfeito pode fazer a lista inteira se perder', 'É impossível remover elementos do meio da lista'], a:2, exp:'Se a ligação entre nós for feita incorretamente, partes da lista (ou toda ela) podem ficar inacessíveis.'},
+  {q:'Em "self.cabeca = self.cabeca.prox", qual operação está sendo realizada?', o:['Inserir um novo nó no início', 'Imprimir o primeiro nó', 'Inverter a lista inteira', 'Remover o primeiro nó da lista'], a:3, exp:'Essa linha avança a cabeça para o segundo nó, efetivamente removendo o antigo primeiro nó.'},
+  {q:'Qual é o limite teórico para o tamanho de uma lista encadeada em um programa?', o:['Exatamente 1000 elementos, por padrão da linguagem', 'A quantidade de memória física e virtual disponível', 'O número de linhas do código-fonte', 'Listas encadeadas têm sempre tamanho fixo de criação'], a:1, exp:'A alocação dinâmica é limitada pela memória física disponível e pelo espaço de memória virtual do sistema.'}
+];
+
+    const slides = [...document.querySelectorAll('.slide')];
+    const progressBar = document.getElementById('progressBar');
+    const slideCount = document.getElementById('slideCount');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    let current = 0;
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function goToSlide(index) {
+      const next = Math.max(0, Math.min(index, slides.length - 1));
+      if (next === current) return;
+      slides[current].classList.toggle('leaving-left', next > current);
+      slides[current].classList.remove('active');
+      current = next;
+      slides[current].classList.add('active');
+      updateUI();
+    }
+
+    function updateUI() {
+      slideCount.textContent = `${current + 1} / ${slides.length}`;
+      progressBar.style.width = `${((current + 1) / slides.length) * 100}%`;
+      prevBtn.disabled = current === 0;
+      nextBtn.disabled = current === slides.length - 1;
+      document.querySelectorAll('.overview-item').forEach((btn, i) => btn.classList.toggle('current', i === current));
+    }
+
+    prevBtn.addEventListener('click', () => goToSlide(current - 1));
+    nextBtn.addEventListener('click', () => goToSlide(current + 1));
+
+    document.addEventListener('keydown', (e) => {
+      if (document.querySelector('.modal.open')) {
+        if (e.key === 'Escape') closeModals();
+        return;
+      }
+      if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); goToSlide(current + 1); }
+      if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); goToSlide(current - 1); }
+      if (e.key.toLowerCase() === 'f') toggleFullscreen();
+      if (e.key.toLowerCase() === 'o') openModal('overviewModal');
+      if (e.key === '?') openModal('helpModal');
+    });
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    }
+    document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+
+    function openModal(id) {
+      document.getElementById(id).classList.add('open');
+    }
+    function closeModals() {
+      document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
+    }
+    document.getElementById('overviewBtn').addEventListener('click', () => openModal('overviewModal'));
+    document.getElementById('sourcesBtn').addEventListener('click', () => openModal('sourcesModal'));
+    document.getElementById('helpBtn').addEventListener('click', () => openModal('helpModal'));
+    document.querySelectorAll('.close-modal').forEach(btn => btn.addEventListener('click', closeModals));
+    document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', (e) => { if (e.target === m) closeModals(); }));
+
+    const overviewGrid = document.getElementById('overviewGrid');
+    slides.forEach((slide, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'overview-item';
+      btn.innerHTML = `<small>Slide ${i + 1}</small><span>${slide.dataset.title || 'Sem título'}</span>`;
+      btn.addEventListener('click', () => { closeModals(); goToSlide(i); });
+      overviewGrid.appendChild(btn);
+    });
+
+    // ---- Cartões de descoberta (toggle-cards) ----
+    document.querySelectorAll('.toggle-cards').forEach(container => {
+      const cards = container.querySelectorAll('.toggle-card');
+      cards.forEach(card => {
+        card.addEventListener('click', () => {
+          card.classList.toggle('found');
+          const total = cards.length;
+          const found = container.querySelectorAll('.toggle-card.found').length;
+          if (found === total) showToast('Muito bem! Você mapeou todos os itens.');
+        });
+      });
+    });
+
+    // ---- Abas de conceito (concept-tabs) ----
+    if (document.getElementById('conceptTabs') && typeof conceptData !== 'undefined') {
+      const conceptOutput = document.getElementById('conceptOutput');
+      function setConcept(key) {
+        document.querySelectorAll('#conceptTabs .pill-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.concept === key));
+        conceptOutput.textContent = conceptData[key];
+      }
+      document.querySelectorAll('#conceptTabs .pill-btn').forEach(btn => btn.addEventListener('click', () => setConcept(btn.dataset.concept)));
+      setConcept(document.querySelector('#conceptTabs .pill-btn').dataset.concept);
+    }
+
+    // ---- Cartões de fluxo (flow-cards) ----
+    if (document.querySelector('.flow-card') && typeof flowExamples !== 'undefined') {
+      document.querySelectorAll('.flow-card').forEach(card => {
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.flow-card').forEach(c => c.classList.remove('active'));
+          card.classList.add('active');
+          const out = document.getElementById('flowExample');
+          if (out) out.textContent = flowExamples[card.dataset.flow];
+        });
+      });
+    }
+
+    // ---- Linha do tempo / passos (timeline) ----
+    if (document.getElementById('timelineButtons') && typeof timelineSteps !== 'undefined') {
+      const timelineButtonsEl = document.getElementById('timelineButtons');
+      function setTimeline(i) {
+        document.querySelectorAll('#timelineButtons .time-btn').forEach((b, idx) => b.classList.toggle('active', idx === i));
+        document.getElementById('timelineNumber').textContent = timelineSteps[i].n;
+        document.getElementById('timelineTitle').textContent = timelineSteps[i].t;
+        document.getElementById('timelineText').textContent = timelineSteps[i].d;
+      }
+      timelineSteps.forEach((item, i) => {
+        const b = document.createElement('button');
+        b.className = 'time-btn';
+        b.innerHTML = `<strong>${item.n}</strong>${item.t}`;
+        b.addEventListener('click', () => setTimeline(i));
+        timelineButtonsEl.appendChild(b);
+      });
+      setTimeline(0);
+    }
+
+    // ---- Jogo de classificação (arrastar/clicar) ----
+    if (document.getElementById('dragItems') && typeof gameItems !== 'undefined' && gameItems.length) {
+      const dragItemsEl = document.getElementById('dragItems');
+      let selectedItem = null;
+      let gameHits = 0;
+      function renderGame() {
+        dragItemsEl.innerHTML = '';
+        selectedItem = null;
+        gameHits = 0;
+        document.getElementById('gameScore').textContent = '0 acertos';
+        document.querySelectorAll('.placed-labels').forEach(z => z.textContent = '');
+        gameItems.forEach((item, i) => {
+          const div = document.createElement('div');
+          div.className = 'drag-item';
+          div.textContent = item.label;
+          div.dataset.index = i;
+          div.draggable = true;
+          div.addEventListener('click', () => selectDrag(div));
+          div.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', i));
+          dragItemsEl.appendChild(div);
+        });
+      }
+      function selectDrag(el) {
+        document.querySelectorAll('.drag-item').forEach(x => x.classList.remove('selected'));
+        selectedItem = Number(el.dataset.index);
+        el.classList.add('selected');
+      }
+      document.querySelectorAll('.drop-zone').forEach(zone => {
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', e => {
+          e.preventDefault();
+          zone.classList.remove('dragover');
+          placeItem(Number(e.dataTransfer.getData('text/plain')), zone);
+        });
+        zone.addEventListener('click', () => {
+          if (selectedItem !== null) placeItem(selectedItem, zone);
+        });
+      });
+      function placeItem(i, zone) {
+        const item = gameItems[i];
+        const el = document.querySelector(`.drag-item[data-index="${i}"]`);
+        if (!el || el.classList.contains('placed')) return;
+        if (item.zone === zone.dataset.zone) {
+          el.classList.add('placed');
+          zone.querySelector('.placed-labels').innerHTML += `• ${item.label}<br>`;
+          gameHits++;
+          document.getElementById('gameScore').textContent = `${gameHits} acertos`;
+          showToast('Boa! Classificação correta.');
+          if (gameHits === gameItems.length) showToast('Excelente! Você concluiu a atividade.');
+        } else {
+          showToast('Quase! Reveja o conceito e tente outra categoria.');
+        }
+        selectedItem = null;
+        document.querySelectorAll('.drag-item').forEach(x => x.classList.remove('selected'));
+      }
+      const resetBtn = document.getElementById('resetGame');
+      if (resetBtn) resetBtn.addEventListener('click', renderGame);
+      renderGame();
+    }
+
+    // ---- Checagens rápidas (quick-checks) ----
+    document.querySelectorAll('.quick-row').forEach(row => {
+      row.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          row.classList.add('answered');
+          const ok = btn.dataset.choice === row.dataset.answer;
+          row.classList.toggle('correct', ok);
+          row.classList.toggle('wrong', !ok);
+        });
+      });
+    });
+
+    // ---- Quiz final ----
+    if (document.getElementById('quizCard') && typeof quizData !== 'undefined') {
+      let quizIndex = 0, quizPoints = 0, quizLocked = false;
+      const quizCounterEl = document.getElementById('quizCounter');
+      const quizScoreEl = document.getElementById('quizScore');
+      const quizProgressEl = document.getElementById('quizProgress');
+      const quizCardEl = document.getElementById('quizCard');
+      const quizCardTemplate = quizCardEl.innerHTML;
+
+      function renderQuiz() {
+        quizLocked = false;
+        quizCardEl.innerHTML = quizCardTemplate;
+        const item = quizData[quizIndex];
+        const qQuestion = document.getElementById('quizQuestion');
+        const qOptions = document.getElementById('quizOptions');
+        const qFeedback = document.getElementById('quizFeedback');
+        const qNext = document.getElementById('nextQuizBtn');
+        quizCounterEl.textContent = `Pergunta ${quizIndex + 1} de ${quizData.length}`;
+        quizScoreEl.textContent = `${quizPoints} pts`;
+        quizProgressEl.style.width = `${(quizIndex / quizData.length) * 100}%`;
+        qQuestion.textContent = item.q;
+        qFeedback.className = 'quiz-feedback';
+        qFeedback.textContent = 'Escolha uma alternativa.';
+        qNext.disabled = true;
+        qNext.textContent = quizIndex === quizData.length - 1 ? 'Ver resultado' : 'Próxima';
+        item.o.forEach((opt, i) => {
+          const btn = document.createElement('button');
+          btn.className = 'quiz-option';
+          btn.textContent = opt;
+          btn.addEventListener('click', () => answerQuiz(i, btn, item, qFeedback, qNext));
+          qOptions.appendChild(btn);
+        });
+        qNext.addEventListener('click', quizNextHandler);
+      }
+      function answerQuiz(choice, btn, item, qFeedback, qNext) {
+        if (quizLocked) return;
+        quizLocked = true;
+        const buttons = [...document.querySelectorAll('#quizOptions .quiz-option')];
+        buttons.forEach(b => b.disabled = true);
+        buttons[item.a].classList.add('correct');
+        if (choice === item.a) {
+          quizPoints++;
+          qFeedback.className = 'quiz-feedback good';
+          qFeedback.textContent = `Correto! ${item.exp}`;
+        } else {
+          btn.classList.add('wrong');
+          qFeedback.className = 'quiz-feedback bad';
+          qFeedback.textContent = `Ainda não. ${item.exp}`;
+        }
+        quizScoreEl.textContent = `${quizPoints} pts`;
+        qNext.disabled = false;
+      }
+      function quizNextHandler() {
+        quizIndex++;
+        if (quizIndex < quizData.length) renderQuiz();
+        else showQuizResult();
+      }
+      function showQuizResult() {
+        quizProgressEl.style.width = '100%';
+        const total = quizData.length;
+        const ratio = quizPoints / total;
+        const msg = ratio >= 0.9 ? 'Excelente! Domínio sólido do conteúdo.' :
+                    ratio >= 0.7 ? 'Muito bom! Vale revisar alguns detalhes.' :
+                    ratio >= 0.5 ? 'Bom começo. Vamos reforçar os conceitos principais.' :
+                    'Vamos revisar juntos e tentar novamente.';
+        quizCardEl.innerHTML = `
+          <div class="result-panel">
+            <div>
+              <div class="result-score">${quizPoints}/${total}</div>
+              <h3>${msg}</h3>
+              <p>Revise os pontos que geraram mais dúvida antes de seguir em frente.</p>
+              <button class="primary-btn" id="restartQuiz">Refazer quiz</button>
+            </div>
+          </div>`;
+        document.getElementById('restartQuiz').addEventListener('click', () => {
+          quizIndex = 0; quizPoints = 0;
+          renderQuiz();
+        });
+      }
+      renderQuiz();
+    }
+
+    // ---- Fundo animado ----
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+    let points = [];
+    function resizeCanvas() {
+      canvas.width = innerWidth * devicePixelRatio;
+      canvas.height = innerHeight * devicePixelRatio;
+      ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+      points = Array.from({length: 90}, () => ({
+        x: Math.random() * innerWidth,
+        y: Math.random() * innerHeight,
+        vx: (Math.random() - .5) * .42,
+        vy: (Math.random() - .5) * .42,
+        r: Math.random() * 2 + .7
+      }));
+    }
+    function drawBackground() {
+      ctx.clearRect(0,0,innerWidth,innerHeight);
+      ctx.fillStyle = 'rgba(55,215,255,.75)';
+      for (const p of points) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > innerWidth) p.vx *= -1;
+        if (p.y < 0 || p.y > innerHeight) p.vy *= -1;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(55,215,255,.16)';
+      for (let i=0;i<points.length;i++) {
+        for (let j=i+1;j<points.length;j++) {
+          const dx = points[i].x-points[j].x, dy = points[i].y-points[j].y, d = Math.hypot(dx,dy);
+          if (d < 120) {
+            ctx.globalAlpha = (120-d)/120;
+            ctx.beginPath(); ctx.moveTo(points[i].x,points[i].y); ctx.lineTo(points[j].x,points[j].y); ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+        }
+      }
+      requestAnimationFrame(drawBackground);
+    }
+    addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    drawBackground();
+    updateUI();
+
+  </script>
+</body>
+</html>
